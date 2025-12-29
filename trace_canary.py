@@ -12,8 +12,11 @@ from nemo.collections.asr.models import EncDecMultiTaskModel
 from viztracer import VizTracer
 
 def main():
-    tracer = VizTracer(output_file="canary_trace.json", tracer_entries=50000000, min_duration=10, log_torch=True)
-    tracer.start()
+    ENABLE_TRACER = False
+
+    if ENABLE_TRACER:
+        tracer = VizTracer(output_file="canary_trace.json")
+        tracer.start()
 
     # Check if GPU is available
     map_location = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -51,9 +54,10 @@ def main():
     else:
         print("No transcript generated.")
 
-    tracer.stop()
-    tracer.save()
-    print("Trace saved to canary_trace.json")
+    if ENABLE_TRACER:
+        tracer.stop()
+        tracer.save()
+        print("Trace saved to canary_trace.json")
 
 if __name__ == "__main__":
     main()
