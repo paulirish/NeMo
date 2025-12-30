@@ -12,10 +12,10 @@ from nemo.collections.asr.models import EncDecMultiTaskModel
 from viztracer import VizTracer
 
 def main():
-    ENABLE_TRACER = False
+    ENABLE_TRACER = True
 
     if ENABLE_TRACER:
-        tracer = VizTracer(output_file="canary_trace.json")
+        tracer = VizTracer(output_file="canary_trace.json", tracer_entries=50000000, min_duration=10, log_torch=True)
         tracer.start()
 
     # Check if GPU is available
@@ -61,3 +61,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# time uv run --no-project trace_canary.py
+#    with no tracer: 56.5 sec
+
