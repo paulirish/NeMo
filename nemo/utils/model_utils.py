@@ -535,7 +535,7 @@ def _convert_config(cfg: 'OmegaConf'):
         logging.warning(f"Skipped conversion for config/subconfig:\n{cfg}\n Reason: {e}.")
 
 
-def maybe_update_config_version(cfg: 'DictConfig'):
+def maybe_update_config_version(cfg: 'DictConfig', make_copy: bool = True):
     """
     Recursively convert Hydra 0.x configs to Hydra 1.x configs.
 
@@ -546,6 +546,7 @@ def maybe_update_config_version(cfg: 'DictConfig'):
 
     Args:
         cfg: Any Hydra compatible DictConfig
+        make_copy: bool to indicating if the config should be copied before updating
 
     Returns:
         An updated DictConfig that conforms to Hydra 1.x format.
@@ -562,7 +563,8 @@ def maybe_update_config_version(cfg: 'DictConfig'):
             return cfg
 
     # Make a copy of model config.
-    cfg = copy.deepcopy(cfg)
+    if make_copy:
+        cfg = copy.deepcopy(cfg)
     OmegaConf.set_struct(cfg, False)
 
     # Convert config.
