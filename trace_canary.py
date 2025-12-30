@@ -1,7 +1,6 @@
 # To run this script:
-# 1. Ensure you have uv installed.
-# 2. Refresh credentials if needed: gcert-local
-# 3. Install dependencies manually to bypass project-level resolution issues:
+# 1. Have 'uv' installed
+# 2. Install dependencies manually (I had to, to bypass project-level resolution issues):
 #    uv pip install torch viztracer "nemo-toolkit[asr]"
 # 4. Run the script without project context:
 #    uv run --no-project trace_canary.py
@@ -15,7 +14,7 @@ def main():
     ENABLE_TRACER = True
 
     if ENABLE_TRACER:
-        tracer = VizTracer(output_file="canary_trace.json", tracer_entries=50000000, min_duration=10, log_torch=True)
+        tracer = VizTracer(output_file="canary_trace.json", log_torch=True, min_duration=100)
         tracer.start()
 
     # Check if GPU is available
@@ -61,7 +60,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# time uv run --no-project trace_canary.py
-#    with no tracer: 56.5 sec
-
