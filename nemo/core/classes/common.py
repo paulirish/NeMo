@@ -44,7 +44,7 @@ from nemo.core.classes.mixins.hf_io_mixin import HuggingFaceFileIO
 from nemo.core.config.templates.model_card import NEMO_DEFAULT_MODEL_CARD_TEMPLATE
 from nemo.core.connectors.save_restore_connector import SaveRestoreConnector
 from nemo.core.neural_types import NeuralType, NeuralTypeComparisonResult
-from nemo.utils import logging
+from nemo.utils import logging, model_utils
 from nemo.utils.cloud import maybe_download_from_cloud
 from nemo.utils.data_utils import resolve_cache_dir
 from nemo.utils.model_utils import import_class_by_path, maybe_update_config_version
@@ -592,12 +592,8 @@ class Serialization(ABC):
         """Instantiates object using DictConfig-based configuration"""
         # Resolve the config dict
         if _HAS_HYDRA:
-            if isinstance(config, DictConfig):
-                config = OmegaConf.to_container(config, resolve=True)
-                config = OmegaConf.create(config)
-                OmegaConf.set_struct(config, True)
-
-            config = maybe_update_config_version(config)
+            config = model_utils.convert_model_config_to_dict_config(config)
+            config = maybe_update_config_version(config, make_copy=False)
 
         # Hydra 0.x API
         if ('cls' in config or 'target' in config) and 'params' in config and _HAS_HYDRA:

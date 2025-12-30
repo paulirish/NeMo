@@ -499,6 +499,10 @@ def convert_model_config_to_dict_config(cfg: Union['DictConfig', 'NemoConfig']) 
     if not _HAS_HYDRA:
         logging.error("This function requires Hydra/Omegaconf and it was not installed.")
         exit(1)
+
+    if isinstance(cfg, DictConfig) and getattr(cfg, '_nemo_resolved', False):
+        return cfg
+
     if not isinstance(cfg, (OmegaConf, DictConfig)) and is_dataclass(cfg):
         cfg = OmegaConf.structured(cfg)
 
@@ -507,6 +511,10 @@ def convert_model_config_to_dict_config(cfg: Union['DictConfig', 'NemoConfig']) 
 
     config = OmegaConf.to_container(cfg, resolve=True)
     config = OmegaConf.create(config)
+
+    with open_dict(config):
+        config._nemo_resolved = True
+
     return config
 
 
