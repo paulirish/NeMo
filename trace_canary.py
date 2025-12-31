@@ -6,6 +6,7 @@
 #    uv run --no-project trace_canary.py
 
 import os
+import time
 import torch
 from nemo.collections.asr.models import EncDecMultiTaskModel
 from viztracer import VizTracer
@@ -16,6 +17,8 @@ def main():
     if ENABLE_TRACER:
         tracer = VizTracer(output_file="canary_trace.json", log_torch=True, min_duration=700)
         tracer.start()
+
+    start_time = time.perf_counter()
 
     # Check if GPU is available
     map_location = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -58,6 +61,9 @@ def main():
             assert expected_text in text
     else:
         print("No transcript generated.")
+
+    end_time = time.perf_counter()
+    print(f"Total time: {end_time - start_time:.2f} seconds")
 
     if ENABLE_TRACER:
         tracer.stop()
