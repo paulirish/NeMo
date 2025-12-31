@@ -517,22 +517,22 @@ def convert_model_config_to_dict_config(cfg: Union['DictConfig', 'NemoConfig']) 
     if _is_nemo_processed(cfg, '_nemo_resolved'):
         return cfg
 
+    # Optimization: Allow dicts to pass through if marked
     if isinstance(cfg, dict) and cfg.get('_nemo_resolved', False):
         return cfg
 
     if not isinstance(cfg, (OmegaConf, DictConfig)) and is_dataclass(cfg):
         cfg = OmegaConf.structured(cfg)
 
+    # Optimization: Return dicts directly to avoid unnecessary DictConfig conversion overhead
     if isinstance(cfg, dict):
         return cfg
 
     if not isinstance(cfg, DictConfig):
         raise ValueError(f"cfg constructor argument must be of type DictConfig/dict but got {type(cfg)} instead.")
 
-    # In-place resolution is much faster than to_container + create cycle
-    # and it handles non-primitive objects correctly.
+    # Optimization: In-place resolution is much faster than to_container + create cycle
     OmegaConf.resolve(cfg)
-
     object.__setattr__(cfg, '_nemo_resolved', True)
 
     return cfg
@@ -586,13 +586,13 @@ def maybe_update_config_version(cfg: 'DictConfig', make_copy: bool = True):
     if cfg is None:
         return cfg
 
+    # Optimization: Skip if already updated
     if _is_nemo_processed(cfg, '_nemo_hydra_updated'):
         return cfg
-
     if isinstance(cfg, dict) and cfg.get('_nemo_hydra_updated', False):
         return cfg
 
-    if not isinstance(cfg, (dict, DictConfig)):
+    if not isinstance(cfg, DictConfig):
         try:
             temp_cfg = OmegaConf.create(cfg)
             cfg = temp_cfg
@@ -603,21 +603,16 @@ def maybe_update_config_version(cfg: 'DictConfig', make_copy: bool = True):
     # Make a copy of model config.
     if make_copy:
         cfg = copy.deepcopy(cfg)
-
-    is_dict_config = isinstance(cfg, DictConfig)
-
-    if is_dict_config:
-        OmegaConf.set_struct(cfg, False)
+    
+    OmegaConf.set_struct(cfg, False)
 
     # Convert config.
     _convert_config(cfg)
 
     # Update model config.
-    if is_dict_config:
-        OmegaConf.set_struct(cfg, True)
+    OmegaConf.set_struct(cfg, True)
 
-    if isinstance(cfg, DictConfig):
-        object.__setattr__(cfg, '_nemo_hydra_updated', True)
+    object.__setattr__(cfg, '_nemo_hydra_updated', True)
 
     return cfg
 
