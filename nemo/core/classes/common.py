@@ -653,12 +653,9 @@ class Serialization(ABC):
         """Returns object's configuration to config dictionary"""
         if hasattr(self, '_cfg') and self._cfg is not None:
             # Resolve the config dict
-            if _HAS_HYDRA and isinstance(self._cfg, DictConfig):
-                config = OmegaConf.to_container(self._cfg, resolve=True)
-                config = OmegaConf.create(config)
-                OmegaConf.set_struct(config, True)
-
-                config = maybe_update_config_version(config)
+            if _HAS_HYDRA:
+                config = model_utils.convert_model_config_to_dict_config(self._cfg)
+                config = maybe_update_config_version(config, make_copy=False)
 
             self._cfg = config
 
@@ -746,7 +743,7 @@ class FileIO(ABC):
         Returns:
         """
         if hasattr(self, '_cfg'):
-            self._cfg = maybe_update_config_version(self._cfg)
+            self._cfg = maybe_update_config_version(self._cfg, make_copy=False)
             with open(path2yaml_file, 'w', encoding='utf-8') as fout:
                 OmegaConf.save(config=self._cfg, f=fout, resolve=True)
         else:

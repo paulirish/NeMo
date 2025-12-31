@@ -39,7 +39,7 @@ from nemo.utils.data_utils import (  # imported for compatibility: model_utils.r
 _HAS_HYDRA = True
 
 try:
-    from omegaconf import DictConfig, ListConfig, OmegaConf
+    from omegaconf import DictConfig, ListConfig, OmegaConf, open_dict
     from omegaconf import errors as omegaconf_errors
     from packaging import version
 except ModuleNotFoundError:
@@ -483,6 +483,20 @@ def wrap_training_step(wrapped, instance: 'pl.LightningModule', args, kwargs):
     return output_dict
 
 
+def _is_nemo_processed(cfg, attr):
+    curr = cfg
+    while True:
+        if getattr(curr, attr, False):
+            return True
+        if not hasattr(curr, '_get_parent'):
+            break
+        parent = curr._get_parent()
+        if parent is None:
+            break
+        curr = parent
+    return False
+
+
 def convert_model_config_to_dict_config(cfg: Union['DictConfig', 'NemoConfig']) -> 'DictConfig':
     """
     Converts its input into a standard DictConfig.
@@ -500,22 +514,28 @@ def convert_model_config_to_dict_config(cfg: Union['DictConfig', 'NemoConfig']) 
         logging.error("This function requires Hydra/Omegaconf and it was not installed.")
         exit(1)
 
-    if isinstance(cfg, DictConfig) and getattr(cfg, '_nemo_resolved', False):
+    if _is_nemo_processed(cfg, '_nemo_resolved'):
+        return cfg
+
+    if isinstance(cfg, dict) and cfg.get('_nemo_resolved', False):
         return cfg
 
     if not isinstance(cfg, (OmegaConf, DictConfig)) and is_dataclass(cfg):
         cfg = OmegaConf.structured(cfg)
 
+    if isinstance(cfg, dict):
+        return cfg
+
     if not isinstance(cfg, DictConfig):
         raise ValueError(f"cfg constructor argument must be of type DictConfig/dict but got {type(cfg)} instead.")
 
-    config = OmegaConf.to_container(cfg, resolve=True)
-    config = OmegaConf.create(config)
+    # In-place resolution is much faster than to_container + create cycle
+    # and it handles non-primitive objects correctly.
+    OmegaConf.resolve(cfg)
 
-    with open_dict(config):
-        config._nemo_resolved = True
+    object.__setattr__(cfg, '_nemo_resolved', True)
 
-    return config
+    return cfg
 
 
 def _convert_config(cfg: 'OmegaConf'):
@@ -537,7 +557,7 @@ def _convert_config(cfg: 'OmegaConf'):
     # Recursion.
     try:
         for _, sub_cfg in cfg.items():
-            if isinstance(sub_cfg, DictConfig):
+            if isinstance(sub_cfg, (dict, DictConfig)):
                 _convert_config(sub_cfg)
     except omegaconf_errors.OmegaConfBaseException as e:
         logging.warning(f"Skipped conversion for config/subconfig:\n{cfg}\n Reason: {e}.")
@@ -562,7 +582,17 @@ def maybe_update_config_version(cfg: 'DictConfig', make_copy: bool = True):
     if not _HAS_HYDRA:
         logging.error("This function requires Hydra/Omegaconf and it was not installed.")
         exit(1)
-    if cfg is not None and not isinstance(cfg, DictConfig):
+
+    if cfg is None:
+        return cfg
+
+    if _is_nemo_processed(cfg, '_nemo_hydra_updated'):
+        return cfg
+
+    if isinstance(cfg, dict) and cfg.get('_nemo_hydra_updated', False):
+        return cfg
+
+    if not isinstance(cfg, (dict, DictConfig)):
         try:
             temp_cfg = OmegaConf.create(cfg)
             cfg = temp_cfg
@@ -573,13 +603,21 @@ def maybe_update_config_version(cfg: 'DictConfig', make_copy: bool = True):
     # Make a copy of model config.
     if make_copy:
         cfg = copy.deepcopy(cfg)
-    OmegaConf.set_struct(cfg, False)
+
+    is_dict_config = isinstance(cfg, DictConfig)
+
+    if is_dict_config:
+        OmegaConf.set_struct(cfg, False)
 
     # Convert config.
     _convert_config(cfg)
 
     # Update model config.
-    OmegaConf.set_struct(cfg, True)
+    if is_dict_config:
+        OmegaConf.set_struct(cfg, True)
+
+    if isinstance(cfg, DictConfig):
+        object.__setattr__(cfg, '_nemo_hydra_updated', True)
 
     return cfg
 
