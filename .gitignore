@@ -186,3 +186,7 @@ slurm*.out
 node_modules/
 .vite/
 bot_server.*
+
+nemo.canary.json
+parakeet_trace.json
+canary_trace.json
